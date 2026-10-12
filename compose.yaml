@@ -1,0 +1,34 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${APP_PORT:-8080}}
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('node:http').get('http://127.0.0.1:3000/health', r => { r.resume(); process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+  frontend:
+    build: ./frontend
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
